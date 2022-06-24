@@ -2,8 +2,10 @@ from datetime import datetime , timedelta
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
 dtype= {'order_id': int, 'date':  str, 'user_id': int , 'total_purchase': float}
 df = pd.read_csv('C:\\Mojo\\Prog\\Python\\Code\\Ronad\\sample_data.csv' , dtype = dtype , usecols = [0,1,2,3] )
+
 def dateCorrect(date):
     date_split = date.split("/")
     if int(date_split[0]) < 10:
@@ -16,6 +18,8 @@ def dateCorrect(date):
 
 days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 df['week_day'] = [days[dateCorrect(d).weekday()] for d in df['date']]
+
+
 '''Question 1'''
 
 for wd in days:
@@ -23,6 +27,8 @@ for wd in days:
     print(df.groupby(by=['week_day'])['date'].value_counts().loc[wd].mean())
     print(wd + "\'s" ,'Standard Deviation' , ": " , end="")
     print(np.std(df.groupby(by=['week_day'])['date'].value_counts().loc[wd]) , "\n")
+
+
 '''Question 2'''
 
 workdays = ["Monday", "Tuesday", "Wednesday", "Saturday", "Sunday"]
@@ -34,6 +40,8 @@ plt.hist(df.groupby(by=['week_day'])['date'].value_counts().loc[workdays].values
 plt.hist(df.groupby(by=['week_day'])['date'].value_counts().loc[weekends].values , alpha = 0.5 , label = 'Weekends')
 plt.legend()
 plt.show
+
+
 '''Question 3'''
 
 df['correct_date'] = df['date'].apply(lambda x: dateCorrect(x))
@@ -88,7 +96,8 @@ output['Ave_r'] = rfm_df.groupby(by=['Customer_segment'])['recency'].mean()
 output['Ave_f'] = rfm_df.groupby(by=['Customer_segment'])['frequency'].mean()
 output['Ave_m'] = rfm_df.groupby(by=['Customer_segment'])['monetary'].mean()
 
-output
+print(output)
+
 for i in range(k):
     x = rfm_df[rfm_df['Customer_segment']==i]['frequency']
     y = rfm_df[rfm_df['Customer_segment']==i]['recency']
