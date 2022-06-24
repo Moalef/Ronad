@@ -1,0 +1,101 @@
+from datetime import datetime , timedelta
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+dtype= {'order_id': int, 'date':  str, 'user_id': int , 'total_purchase': float}
+df = pd.read_csv('C:\\Mojo\\Prog\\Python\\Code\\Ronad\\sample_data.csv' , dtype = dtype , usecols = [0,1,2,3] )
+def dateCorrect(date):
+    date_split = date.split("/")
+    if int(date_split[0]) < 10:
+        date_split[0] = '0' + str(int(date_split[0]))
+    if int(date_split[1]) < 10:
+        date_split[1] = '0' + str(int(date_split[1]))
+    output_date = "/".join(date_split)
+    return datetime.strptime(output_date, '%m/%d/%Y')
+
+
+days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+df['week_day'] = [days[dateCorrect(d).weekday()] for d in df['date']]
+'''Question 1'''
+
+for wd in days:
+    print(wd + "\'s" , 'Average' , ": " , end="")
+    print(df.groupby(by=['week_day'])['date'].value_counts().loc[wd].mean())
+    print(wd + "\'s" ,'Standard Deviation' , ": " , end="")
+    print(np.std(df.groupby(by=['week_day'])['date'].value_counts().loc[wd]) , "\n")
+'''Question 2'''
+
+workdays = ["Monday", "Tuesday", "Wednesday", "Saturday", "Sunday"]
+weekends = ["Thursday", "Friday"]
+
+
+
+plt.hist(df.groupby(by=['week_day'])['date'].value_counts().loc[workdays].values , alpha = 0.5, label= 'Workdays')
+plt.hist(df.groupby(by=['week_day'])['date'].value_counts().loc[weekends].values , alpha = 0.5 , label = 'Weekends')
+plt.legend()
+plt.show
+'''Question 3'''
+
+df['correct_date'] = df['date'].apply(lambda x: dateCorrect(x))
+df_r = df.groupby(by ='user_id' , as_index=False)['correct_date'].max()
+df_r['recency'] = df_r['correct_date'].apply(lambda x: (datetime.now() - x).days)
+
+df_f = df.drop_duplicates().groupby( by=['user_id'] , as_index=False)['correct_date'].count()
+df_f.columns = ['user_id' , 'frequency']
+
+df_m = df.groupby(by= ['user_id'] , as_index=False)['total_purchase'].sum()
+df_m.columns = ['user_id' , 'monetary']
+
+
+rf_df = df_r.merge(df_f, on='user_id')
+rfm_df = rf_df.merge(df_m, on='user_id').drop(columns='correct_date')
+
+rfm_df['R_rank'] = rfm_df['recency'].rank(ascending=False)
+rfm_df['F_rank'] = rfm_df['frequency'].rank(ascending=True)
+rfm_df['M_rank'] = rfm_df['monetary'].rank(ascending=True)
+ 
+rfm_df['R_rank_norm'] = (rfm_df['R_rank']/rfm_df['R_rank'].max())*100
+rfm_df['F_rank_norm'] = (rfm_df['F_rank']/rfm_df['F_rank'].max())*100
+rfm_df['M_rank_norm'] = (rfm_df['F_rank']/rfm_df['M_rank'].max())*100
+
+rfm_df.drop(columns=['R_rank', 'F_rank', 'M_rank'], inplace=True)
+
+rfm_df['RFM_Score'] = 0.15*rfm_df['R_rank_norm']+ 0.28 * rfm_df['F_rank_norm']+ 0.57*rfm_df['M_rank_norm']
+rfm_df['RFM_Score'] *= 0.05
+rfm_df = rfm_df.round(2)
+
+
+# Input Data:
+k = 5
+
+
+score_range = rfm_df['RFM_Score'].max() - rfm_df['RFM_Score'].min()
+step = score_range / k
+clusters= [rfm_df['RFM_Score'].min()]
+for i in range (k):
+    clusters.append (clusters[-1] + step)
+
+
+def segment(score):
+    for i in range(len(clusters)):
+        if score > clusters[i] and score < clusters[i+1]:
+            return i
+
+rfm_df["Customer_segment"] = rfm_df["RFM_Score"].apply(lambda x: segment (x))
+
+output = pd.DataFrame()
+output['Ave_r'] = rfm_df.groupby(by=['Customer_segment'])['recency'].mean()
+output['Ave_f'] = rfm_df.groupby(by=['Customer_segment'])['frequency'].mean()
+output['Ave_m'] = rfm_df.groupby(by=['Customer_segment'])['monetary'].mean()
+
+output
+for i in range(k):
+    x = rfm_df[rfm_df['Customer_segment']==i]['frequency']
+    y = rfm_df[rfm_df['Customer_segment']==i]['recency']
+
+    plt.scatter(x, y , label = i , alpha= 0.3)
+
+plt.xlabel('Frequency')
+plt.ylabel('Recency')
+plt.legend()
+plt.show()
